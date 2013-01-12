@@ -1,4 +1,8 @@
 module PrototypeHelper
+  CALLBACKS    = Set.new([ :create, :uninitialized, :loading, :loaded,
+                   :interactive, :complete, :failure, :success ] +
+                   (100..599).to_a)
+
   # Creates a button with an onclick event which calls a remote action
   # via XMLHttpRequest
   # The options for specifying the target with :url
@@ -411,6 +415,34 @@ module PrototypeHelper
      javascript_tag(code)
   end
 
+  def options_for_ajax(options)
+    js_options = build_callbacks(options)
+
+    js_options['asynchronous'] = options[:type] != :synchronous
+    js_options['method']       = method_option_to_s(options[:method]) if options[:method]
+    js_options['insertion']    = "'#{options[:position].to_s.downcase}'" if options[:position]
+    js_options['evalScripts']  = options[:script].nil? || options[:script]
+
+    if options[:form]
+      js_options['parameters'] = 'Form.serialize(this)'
+    elsif options[:submit]
+      js_options['parameters'] = "Form.serialize('#{options[:submit]}')"
+    elsif options[:with]
+      js_options['parameters'] = options[:with]
+    end
+
+    if protect_against_forgery? && !options[:form]
+      if js_options['parameters']
+        js_options['parameters'] << " + '&"
+      else
+        js_options['parameters'] = "'"
+      end
+      js_options['parameters'] << "#{request_forgery_protection_token}=' + encodeURIComponent('#{escape_javascript form_authenticity_token}')"
+    end
+
+    options_for_javascript(js_options)
+  end
+
   protected
     def build_observer(klass, name, options = {})
       if options[:with] && (options[:with] !~ /[\{=(.]/)
@@ -426,6 +458,22 @@ module PrototypeHelper
       javascript << "#{callback}}"
       javascript << ")"
       javascript_tag(javascript)
+    end
+
+    def method_option_to_s(method)
+      (method.is_a?(String) and !method.index("'").nil?) ? method : "'#{method}'"
+    end
+
+
+    def build_callbacks(options)
+      callbacks = {}
+      options.each do |callback, code|
+        if CALLBACKS.include?(callback)
+          name = 'on' + callback.to_s.capitalize
+          callbacks[name] = "function(request){#{code}}"
+        end
+      end
+      callbacks
     end
 end
 
