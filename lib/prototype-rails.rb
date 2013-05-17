@@ -1,5 +1,6 @@
 require 'rails'
 require 'active_support'
+require 'prototype-rails/prototype_legacy_helper'
 
 module PrototypeRails
   class Engine < Rails::Engine
