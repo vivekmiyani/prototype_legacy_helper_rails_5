@@ -267,12 +267,12 @@ module PrototypeHelper
     when Array
       object = record_or_name_or_array.last
       object_name = ActiveModel::Naming.singular(object)
-      apply_form_for_options!(record_or_name_or_array, options)
+      apply_form_for_options!(record_or_name_or_array, object, options)
       args.unshift object
     else
       object      = record_or_name_or_array
       object_name = ActiveModel::Naming.singular(record_or_name_or_array)
-      apply_form_for_options!(object, options)
+      apply_form_for_options!(object, object, options)
       args.unshift object
     end
 
