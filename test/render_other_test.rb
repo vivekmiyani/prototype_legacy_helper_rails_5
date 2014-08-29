@@ -35,7 +35,7 @@ class RenderOtherTest < ActionController::TestCase
         page.select('.product').each do |value|
           page.rjs_helper_method_from_module
           page.rjs_helper_method(value)
-          page.sortable(value, :url => { :action => "order" })
+          page.sortable(value, :url => { :controller => 'render_other_test/test', :action => "order" })
           page.draggable(value)
         end
       end
