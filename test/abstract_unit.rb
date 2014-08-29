@@ -4,7 +4,6 @@ $:.unshift(lib) unless $:.include?('lib') || $:.include?(lib)
 $:.unshift(File.dirname(__FILE__) + '/lib')
 
 if defined? Gem
-  Gem.source_index
   gem 'bundler'
 else
   require 'rubygems'
@@ -12,7 +11,8 @@ end
 require 'bundler'
 Bundler.setup
 
-require 'test/unit'
+gem 'minitest'
+require 'minitest/autorun'
 require 'active_support'
 require 'action_controller'
 require 'action_view'
@@ -59,11 +59,11 @@ module ActiveSupport
     # have been loaded.
     setup_once do
       SharedTestRoutes.draw do
-        match ':controller(/:action)'
+        match ':controller(/:action)', via: [:get, :post]
       end
 
       ActionDispatch::IntegrationTest.app.routes.draw do
-        match ':controller(/:action)'
+        match ':controller(/:action)', via: [:get, :post]
       end
     end
   end
@@ -109,7 +109,7 @@ class ActionDispatch::IntegrationTest < ActiveSupport::TestCase
       middleware.use "ActionDispatch::ParamsParser"
       middleware.use "ActionDispatch::Cookies"
       middleware.use "ActionDispatch::Flash"
-      middleware.use "ActionDispatch::Head"
+      middleware.use "Rack::Head"
       yield(middleware) if block_given?
     end
   end
