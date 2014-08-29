@@ -156,7 +156,8 @@ module ActionView
       # #include_helpers_from_context has nothing to overwrite.
       class JavaScriptGenerator #:nodoc:
         def initialize(context, &block) #:nodoc:
-          @context, @lines = context, []
+          @context = context
+          @lines = JavaScriptLines.new
           include_helpers_from_context
           @context.with_output_buffer(@lines) do
             @context.instance_exec(self, &block)
@@ -585,6 +586,12 @@ module ActionView
             def method_missing(method, *arguments)
               JavaScriptProxy.new(self, method.to_s.camelize)
             end
+        end
+      end
+
+      class JavaScriptLines < Array
+        def encoding
+          "".encoding
         end
       end
 
