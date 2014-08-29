@@ -820,7 +820,7 @@ module ActionView
           if ENUMERABLE_METHODS.include?(method)
             returnable = ENUMERABLE_METHODS_WITH_RETURN.include?(method)
             variable   = arguments.first if returnable
-            enumerate(method, {:variable => (arguments.first if returnable), :return => returnable, :yield_args => %w(value index)}, &block)
+            enumerate(method, {:variable => variable, :return => returnable, :yield_args => %w(value index)}, &block)
           else
             super
           end
