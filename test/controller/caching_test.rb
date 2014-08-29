@@ -40,6 +40,11 @@ class FunctionalFragmentCachingTest < ActionController::TestCase
     xhr :get, :js_fragment_cached_with_partial
     assert_response :success
     assert_match(/Old fragment caching in a partial/, @response.body)
-    assert_match("Old fragment caching in a partial", @store.read('views/test.host/functional_caching/js_fragment_cached_with_partial'))
+    assert_match("Old fragment caching in a partial", @store.read("views/test.host/functional_caching/js_fragment_cached_with_partial/#{template_digest("functional_caching/_partial")}"))
   end
+
+  private
+    def template_digest(name)
+      ActionView::Digestor.digest(name: name, finder: @controller.lookup_context)
+    end
 end
