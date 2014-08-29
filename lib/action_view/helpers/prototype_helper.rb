@@ -3,6 +3,16 @@ require 'active_support/json'
 require 'active_support/core_ext/object/blank'
 require 'active_support/core_ext/string/output_safety'
 
+module ActiveSupport
+  module JSON
+    # Deprecated: A string that returns itself as its JSON-encoded form.
+    class Variable < String
+      def as_json(options = nil) self end #:nodoc:
+      def encode_json(encoder) self end #:nodoc:
+    end
+  end
+end
+
 module ActionView
   # = Action View Prototype Helpers
   module Helpers
