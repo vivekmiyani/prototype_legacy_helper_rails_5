@@ -2,6 +2,7 @@ require 'set'
 require 'active_support/json'
 require 'active_support/core_ext/object/blank'
 require 'active_support/core_ext/string/output_safety'
+require 'activesupport/json_encoder'
 
 module ActiveSupport
   module JSON

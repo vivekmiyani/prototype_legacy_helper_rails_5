@@ -9,5 +9,6 @@ Gem::Specification.new do |spec|
   spec.files = %w(README Rakefile Gemfile) + Dir['lib/**/*', 'vendor/**/*', 'test/**/*']
 
   spec.add_dependency('rails')
+  spec.add_dependency('activesupport-json_encoder')
   spec.add_development_dependency('mocha')
 end
