@@ -167,6 +167,7 @@ module ActionView
 
         private
           def include_helpers_from_context
+            extend @context.controller.class._helpers if @context.respond_to?(:controller) && @context.controller.class._helpers
             extend @context.helpers if @context.respond_to?(:helpers) && @context.helpers
             extend GeneratorMethods
           end
