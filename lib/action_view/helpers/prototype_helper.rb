@@ -527,6 +527,27 @@ module ActionView
             record "}, #{(seconds * 1000).to_i})"
           end
 
+          public # formerly private, but used with send
+            def javascript_object_for(object)
+              ::ActiveSupport::JSON.encode(object)
+            end
+
+            def arguments_for_call(arguments, block = nil)
+              arguments << block_to_function(block) if block
+              arguments.map { |argument| javascript_object_for(argument) }.join ', '
+            end
+
+            def render(*options)
+              with_formats(:html) do
+                case option = options.first
+                when Hash
+                  @context.render(*options)
+                else
+                  option.to_s
+                end
+              end
+            end
+
           private
             def loop_on_multiple_args(method, ids)
               record(ids.size>1 ?
@@ -544,17 +565,6 @@ module ActionView
               line
             end
 
-            def render(*options)
-              with_formats(:html) do
-                case option = options.first
-                when Hash
-                  @context.render(*options)
-                else
-                  option.to_s
-                end
-              end
-            end
-
             def with_formats(*args)
               return yield unless @context
 
@@ -565,15 +575,6 @@ module ActionView
               ensure
                 lookup.formats = old_formats
               end
-            end
-
-            def javascript_object_for(object)
-              ::ActiveSupport::JSON.encode(object)
-            end
-
-            def arguments_for_call(arguments, block = nil)
-              arguments << block_to_function(block) if block
-              arguments.map { |argument| javascript_object_for(argument) }.join ', '
             end
 
             def block_to_function(block)
