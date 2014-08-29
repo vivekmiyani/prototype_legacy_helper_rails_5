@@ -162,8 +162,9 @@ class RenderOtherTest < ActionController::TestCase
   end
 
   def test_enum_rjs_test
-    SecureRandom.stubs(:base64).returns("asdf")
-    get :enum_rjs_test
+    SecureRandom.stub(:base64, "asdf") do
+      get :enum_rjs_test
+    end
     body = %{
       $$(".product").each(function(value, index) {
       new Effect.Highlight(element,{});
