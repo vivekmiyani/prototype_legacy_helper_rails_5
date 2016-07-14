@@ -260,13 +260,15 @@ module PrototypeHelper
   # If you don't need to attach a form to a resource, then check out form_remote_tag.
   #
   # See FormHelper#form_for for additional semantics.
-  def remote_form_for(record, options, &proc)
+  #
+  # The object default value here permits the three-argument use we have
+  # in the codebase, where we pass the object and options.
+  def remote_form_for(record, object = nil, **options, &proc)
     options[:html] ||= {}
 
     case record
     when String, Symbol
       object_name = record
-      object      = nil
     else
       object      = record.is_a?(Array) ? record.last : record
       raise ArgumentError, 'First argument in form cannot contain nil or be empty' unless object
