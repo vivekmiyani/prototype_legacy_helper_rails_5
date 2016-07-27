@@ -1,4 +1,8 @@
 module PrototypeHelper
+  CALLBACKS    = Set.new([ :create, :uninitialized, :loading, :loaded,
+                   :interactive, :complete, :failure, :success ] +
+                   (100..599).to_a)
+
   # Creates a button with an onclick event which calls a remote action
   # via XMLHttpRequest
   # The options for specifying the target with :url
@@ -256,28 +260,24 @@ module PrototypeHelper
   # If you don't need to attach a form to a resource, then check out form_remote_tag.
   #
   # See FormHelper#form_for for additional semantics.
-  def remote_form_for(record_or_name_or_array, *args, &proc)
-    options = args.extract_options!
-    options[:html] ||= {} # must be present or apply_form_for_options! barfs
+  #
+  # The object default value here permits the three-argument use we have
+  # in the codebase, where we pass the object and options.
+  def remote_form_for(record, object = nil, **options, &proc)
+    options[:html] ||= {}
 
-    case record_or_name_or_array
+    case record
     when String, Symbol
-      object_name = record_or_name_or_array
-      args = [nil] if args.empty?
-    when Array
-      object = record_or_name_or_array.last
-      object_name = ActiveModel::Naming.singular(object)
-      apply_form_for_options!(record_or_name_or_array, object, options)
-      args.unshift object
+      object_name = record
     else
-      object      = record_or_name_or_array
-      object_name = ActiveModel::Naming.singular(record_or_name_or_array)
-      apply_form_for_options!(object, object, options)
-      args.unshift object
+      object      = record.is_a?(Array) ? record.last : record
+      raise ArgumentError, 'First argument in form cannot contain nil or be empty' unless object
+      object_name = options[:as] || model_name_from_record_or_class(object).param_key
+      apply_form_for_options!(record, object, options)
     end
 
     form_remote_tag options do
-      fields_for object_name, *(args << options), &proc
+      fields_for object_name, object, options, &proc
     end
   end
   alias_method :form_remote_for, :remote_form_for
@@ -413,6 +413,34 @@ module PrototypeHelper
      javascript_tag(code)
   end
 
+  def options_for_ajax(options)
+    js_options = build_callbacks(options)
+
+    js_options['asynchronous'] = options[:type] != :synchronous
+    js_options['method']       = method_option_to_s(options[:method]) if options[:method]
+    js_options['insertion']    = "'#{options[:position].to_s.downcase}'" if options[:position]
+    js_options['evalScripts']  = options[:script].nil? || options[:script]
+
+    if options[:form]
+      js_options['parameters'] = 'Form.serialize(this)'
+    elsif options[:submit]
+      js_options['parameters'] = "Form.serialize('#{options[:submit]}')"
+    elsif options[:with]
+      js_options['parameters'] = options[:with]
+    end
+
+    if protect_against_forgery? && !options[:form]
+      if js_options['parameters']
+        js_options['parameters'] << " + '&"
+      else
+        js_options['parameters'] = "'"
+      end
+      js_options['parameters'] << "#{request_forgery_protection_token}=' + encodeURIComponent('#{escape_javascript form_authenticity_token}')"
+    end
+
+    options_for_javascript(js_options)
+  end
+
   protected
     def build_observer(klass, name, options = {})
       if options[:with] && (options[:with] !~ /[\{=(.]/)
@@ -428,6 +456,22 @@ module PrototypeHelper
       javascript << "#{callback}}"
       javascript << ")"
       javascript_tag(javascript)
+    end
+
+    def method_option_to_s(method)
+      (method.is_a?(String) and !method.index("'").nil?) ? method : "'#{method}'"
+    end
+
+
+    def build_callbacks(options)
+      callbacks = {}
+      options.each do |callback, code|
+        if CALLBACKS.include?(callback)
+          name = 'on' + callback.to_s.capitalize
+          callbacks[name] = "function(request){#{code}}"
+        end
+      end
+      callbacks
     end
 end
 
