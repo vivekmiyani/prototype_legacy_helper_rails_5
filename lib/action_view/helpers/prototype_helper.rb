@@ -15,6 +15,12 @@ module ActiveSupport
 end
 
 module ActionView
+  # A string that returns itself as its JSON-encoded form.
+  class JsonLiteral < String
+    def as_json(options = nil) self end #:nodoc:
+    def encode_json(encoder) self end #:nodoc:
+  end
+
   # = Action View Prototype Helpers
   module Helpers
     # Prototype[http://www.prototypejs.org/] is a JavaScript library that provides
@@ -157,8 +163,8 @@ module ActionView
       # #include_helpers_from_context has nothing to overwrite.
       class JavaScriptGenerator #:nodoc:
         def initialize(context, &block) #:nodoc:
-          @context = context
-          @lines = JavaScriptLines.new
+          @context, @lines = context, []
+          def @lines.encoding() last.to_s.encoding end
           include_helpers_from_context
           @context.with_output_buffer(@lines) do
             @context.instance_exec(self, &block)
@@ -167,8 +173,7 @@ module ActionView
 
         private
           def include_helpers_from_context
-            extend @context.controller.class._helpers if @context.respond_to?(:controller) && @context.controller.class._helpers
-            extend @context.helpers if @context.respond_to?(:helpers) && @context.helpers
+            extend @context.controller._helpers if @context.controller.respond_to?(:_helpers) && @context.controller._helpers
             extend GeneratorMethods
           end
 
@@ -266,14 +271,21 @@ module ActionView
               when String, Symbol, NilClass
                 JavaScriptElementProxy.new(self, id)
               else
-                JavaScriptElementProxy.new(self, ActionView::RecordIdentifier.dom_id(id))
+                JavaScriptElementProxy.new(self, RecordIdentifier.dom_id(id))
             end
           end
+
+          RecordIdentifier =
+            if defined? ActionView::RecordIdentifier
+              ActionView::RecordIdentifier
+            else
+              ActionController::RecordIdentifier
+            end
 
           # Returns an object whose <tt>to_json</tt> evaluates to +code+. Use this to pass a literal JavaScript
           # expression as an argument to another JavaScriptGenerator method.
           def literal(code)
-            ::ActiveSupport::JSON::Variable.new(code.to_s)
+            JsonLiteral.new(code.to_s)
           end
 
           # Returns a collection reference by finding it through a CSS +pattern+ in the DOM. This collection can then be
@@ -530,26 +542,14 @@ module ActionView
             record "}, #{(seconds * 1000).to_i})"
           end
 
-          public # formerly private, but used with send
-            def javascript_object_for(object)
-              ::ActiveSupport::JSON.encode(object)
-            end
+          def javascript_object_for(object)
+            ::ActiveSupport::JSON.encode(object)
+          end
 
-            def arguments_for_call(arguments, block = nil)
-              arguments << block_to_function(block) if block
-              arguments.map { |argument| javascript_object_for(argument) }.join ', '
-            end
-
-            def render(*options)
-              with_formats(:html) do
-                case option = options.first
-                when Hash
-                  @context.render(*options)
-                else
-                  option.to_s
-                end
-              end
-            end
+          def arguments_for_call(arguments, block = nil)
+            arguments << block_to_function(block) if block
+            arguments.map { |argument| javascript_object_for(argument) }.join ', '
+          end
 
           private
             def loop_on_multiple_args(method, ids)
@@ -675,7 +675,6 @@ module ActionView
 
     # Converts chained method calls on DOM proxy elements into JavaScript chains
     class JavaScriptProxy < ActiveSupport::ProxyObject #:nodoc:
-
       def initialize(generator, root = nil)
         @generator = generator
         @generator << root if root
@@ -750,7 +749,7 @@ module ActionView
 
     class JavaScriptVariableProxy < JavaScriptProxy #:nodoc:
       def initialize(generator, variable)
-        @variable = ::ActiveSupport::JSON::Variable.new(variable)
+        @variable = JsonLiteral.new(variable)
         @empty    = true # only record lines if we have to.  gets rid of unnecessary linebreaks
         super(generator)
       end
@@ -774,8 +773,8 @@ module ActionView
     end
 
     class JavaScriptCollectionProxy < JavaScriptProxy #:nodoc:
-      ENUMERABLE_METHODS_WITH_RETURN = [:all, :any, :collect, :map, :detect, :find, :find_all, :select, :max, :min, :partition, :reject, :sort_by, :in_groups_of, :each_slice] unless defined? ENUMERABLE_METHODS_WITH_RETURN
-      ENUMERABLE_METHODS = ENUMERABLE_METHODS_WITH_RETURN + [:each] unless defined? ENUMERABLE_METHODS
+      ENUMERABLE_METHODS_WITH_RETURN = [:all, :any, :collect, :map, :detect, :find, :find_all, :select, :max, :min, :partition, :reject, :sort_by, :in_groups_of, :each_slice]
+      ENUMERABLE_METHODS = ENUMERABLE_METHODS_WITH_RETURN + [:each]
       attr_reader :generator
       delegate :arguments_for_call, :to => :generator
 
@@ -793,7 +792,7 @@ module ActionView
       end
 
       def grep(variable, pattern, &block)
-        enumerate :grep, :variable => variable, :return => true, :method_args => [::ActiveSupport::JSON::Variable.new(pattern.inspect)], :yield_args => %w(value index), &block
+        enumerate :grep, :variable => variable, :return => true, :method_args => [JsonLiteral.new(pattern.inspect)], :yield_args => %w(value index), &block
       end
 
       def in_groups_of(variable, number, fill_with = nil)
@@ -817,7 +816,7 @@ module ActionView
         append_enumerable_function!("zip(#{arguments_for_call arguments}")
         if block
           function_chain[-1] += ", function(array) {"
-          yield ::ActiveSupport::JSON::Variable.new('array')
+          yield JsonLiteral.new('array')
           add_return_statement!
           @generator << '});'
         else
