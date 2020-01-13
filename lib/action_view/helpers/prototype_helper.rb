@@ -550,6 +550,17 @@ module ActionView
             arguments.map { |argument| javascript_object_for(argument) }.join ', '
           end
 
+          def render(*options)
+            with_formats(:html) do
+              case option = options.first
+              when Hash
+                @context.render(*options)
+              else
+                option.to_s
+              end
+            end
+          end
+
           private
             def loop_on_multiple_args(method, ids)
               record(ids.size>1 ?
